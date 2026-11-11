@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.*;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
@@ -29,14 +30,21 @@ public class LocalSeedConfig {
         throw new IllegalArgumentException(
             "Usuário local exige e-mail válido e senha de 12 caracteres a 72 bytes.");
       }
-      // Uma segunda execução nunca muda a senha nem reativa uma conta existente.
-      jdbc.update(
-          "INSERT INTO identidade.usuario(id, email, senha_hash, perfil) VALUES (?, ?, ?, ?) ON"
-              + " CONFLICT(email) DO NOTHING",
-          UUID.randomUUID(),
-          normalizado,
-          new BCryptPasswordEncoder(12).encode(senha),
-          perfil.name());
+      // Uma segunda execução nunca muda a senha nem reativa uma conta existente. O HOLDLOCK
+      // serializa execuções simultâneas; se ainda assim outra gravar antes, a conta já existe.
+      try {
+        jdbc.update(
+            "INSERT INTO identidade.usuario(id, email, senha_hash, perfil) SELECT ?, ?, ?, ?"
+                + " WHERE NOT EXISTS (SELECT 1 FROM identidade.usuario WITH (UPDLOCK, HOLDLOCK)"
+                + " WHERE email = ?)",
+            UUID.randomUUID(),
+            normalizado,
+            new BCryptPasswordEncoder(12).encode(senha),
+            perfil.name(),
+            normalizado);
+      } catch (DuplicateKeyException jaExiste) {
+        // Corrida perdida para outra execução do seed: nada a fazer.
+      }
     };
   }
 }

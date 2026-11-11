@@ -14,11 +14,12 @@ class LocalSeedConfigTest {
   @Test
   void seedNormalizaEmailUsaHashENaoSobrescreveContaExistente() throws Exception {
     var jdbc = mock(JdbcTemplate.class);
-    when(jdbc.update(anyString(), any(UUID.class), anyString(), anyString(), anyString()))
+    when(jdbc.update(
+            anyString(), any(UUID.class), anyString(), anyString(), anyString(), anyString()))
         .thenAnswer(
             invocation -> {
               assertTrue(
-                  invocation.<String>getArgument(0).contains("ON CONFLICT(email) DO NOTHING"));
+                  invocation.<String>getArgument(0).contains("WHERE NOT EXISTS"));
               assertEquals("aluno@example.com", invocation.<String>getArgument(2));
               assertEquals("ADMINISTRADOR", invocation.<String>getArgument(4));
               assertTrue(
@@ -35,7 +36,8 @@ class LocalSeedConfigTest {
             any(UUID.class),
             eq("aluno@example.com"),
             anyString(),
-            eq("ADMINISTRADOR"));
+            eq("ADMINISTRADOR"),
+            eq("aluno@example.com"));
   }
 
   @Test
