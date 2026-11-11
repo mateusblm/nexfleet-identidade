@@ -20,24 +20,24 @@ class LocalSeedConfigTest {
             invocation -> {
               assertTrue(
                   invocation.<String>getArgument(0).contains("WHERE NOT EXISTS"));
-              assertEquals("aluno@example.com", invocation.<String>getArgument(2));
+              assertEquals("gestor@example.com", invocation.<String>getArgument(2));
               assertEquals("ADMINISTRADOR", invocation.<String>getArgument(4));
               assertTrue(
                   new BCryptPasswordEncoder()
-                      .matches("senha-local-estudo", invocation.getArgument(3)));
+                      .matches("senha-local-teste", invocation.getArgument(3)));
               return 0;
             });
     new LocalSeedConfig()
-        .criarUsuarioLocal(jdbc, " ALUNO@example.com ", "senha-local-estudo", Perfil.ADMINISTRADOR)
+        .criarUsuarioLocal(jdbc, " GESTOR@example.com ", "senha-local-teste", Perfil.ADMINISTRADOR)
         .run(null);
     verify(jdbc)
         .update(
             anyString(),
             any(UUID.class),
-            eq("aluno@example.com"),
+            eq("gestor@example.com"),
             anyString(),
             eq("ADMINISTRADOR"),
-            eq("aluno@example.com"));
+            eq("gestor@example.com"));
   }
 
   @Test
@@ -60,16 +60,16 @@ class LocalSeedConfigTest {
         .thenThrow(new org.springframework.dao.CannotAcquireLockException("erro 1205"))
         .thenReturn(1);
     new LocalSeedConfig()
-        .criarUsuarioLocal(jdbc, "aluno@example.com", "senha-local-estudo", Perfil.GESTOR_FROTA)
+        .criarUsuarioLocal(jdbc, "gestor@example.com", "senha-local-teste", Perfil.GESTOR_FROTA)
         .run(null);
     verify(jdbc, times(2))
         .update(
             anyString(),
             any(UUID.class),
-            eq("aluno@example.com"),
+            eq("gestor@example.com"),
             anyString(),
             eq("GESTOR_FROTA"),
-            eq("aluno@example.com"));
+            eq("gestor@example.com"));
   }
 
   @Test
@@ -83,7 +83,7 @@ class LocalSeedConfigTest {
         () ->
             new LocalSeedConfig()
                 .criarUsuarioLocal(
-                    jdbc, "aluno@example.com", "senha-local-estudo", Perfil.GESTOR_FROTA)
+                    jdbc, "gestor@example.com", "senha-local-teste", Perfil.GESTOR_FROTA)
                 .run(null));
     verify(jdbc, times(3))
         .update(

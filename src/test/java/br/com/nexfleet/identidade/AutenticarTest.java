@@ -17,13 +17,13 @@ class AutenticarTest {
 
   @Test
   void normalizaEmailEEmiteTokenApenasDepoisDeValidarSenha() {
-    when(usuarios.porEmail("aluno@example.com"))
-        .thenReturn(Optional.of(new Usuario(id, "aluno@example.com", "hash", true)));
+    when(usuarios.porEmail("gestor@example.com"))
+        .thenReturn(Optional.of(new Usuario(id, "gestor@example.com", "hash", true)));
     when(senhas.confere("senha", "hash")).thenReturn(true);
     var token = new EmitirToken.Token("jwt", "Bearer", 900);
     when(tokens.emitir(id, br.com.nexfleet.identidade.usuario.domain.Perfil.GESTOR_FROTA))
         .thenReturn(token);
-    assertEquals(token, caso.executar(" ALUNO@example.com ", "senha"));
+    assertEquals(token, caso.executar(" GESTOR@example.com ", "senha"));
     verify(tokens).emitir(id, br.com.nexfleet.identidade.usuario.domain.Perfil.GESTOR_FROTA);
   }
 
