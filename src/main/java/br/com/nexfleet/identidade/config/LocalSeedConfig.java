@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.*;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
@@ -15,6 +16,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 @Configuration
 @Profile("local-seed")
 public class LocalSeedConfig {
+  private static final int TENTATIVAS = 3;
+
   @Bean
   ApplicationRunner criarUsuarioLocal(
       JdbcTemplate jdbc,
@@ -31,19 +34,26 @@ public class LocalSeedConfig {
             "Usuário local exige e-mail válido e senha de 12 caracteres a 72 bytes.");
       }
       // Uma segunda execução nunca muda a senha nem reativa uma conta existente. O HOLDLOCK
-      // serializa execuções simultâneas; se ainda assim outra gravar antes, a conta já existe.
-      try {
-        jdbc.update(
-            "INSERT INTO identidade.usuario(id, email, senha_hash, perfil) SELECT ?, ?, ?, ?"
-                + " WHERE NOT EXISTS (SELECT 1 FROM identidade.usuario WITH (UPDLOCK, HOLDLOCK)"
-                + " WHERE email = ?)",
-            UUID.randomUUID(),
-            normalizado,
-            new BCryptPasswordEncoder(12).encode(senha),
-            perfil.name(),
-            normalizado);
-      } catch (DuplicateKeyException jaExiste) {
-        // Corrida perdida para outra execução do seed: nada a fazer.
+      // serializa execuções simultâneas; a perdedora de um deadlock (erro 1205) tenta de novo e,
+      // se outra gravar antes, a conta já existe.
+      String hash = new BCryptPasswordEncoder(12).encode(senha);
+      for (int tentativa = 1; ; tentativa++) {
+        try {
+          jdbc.update(
+              "INSERT INTO identidade.usuario(id, email, senha_hash, perfil) SELECT ?, ?, ?, ?"
+                  + " WHERE NOT EXISTS (SELECT 1 FROM identidade.usuario WITH (UPDLOCK, HOLDLOCK)"
+                  + " WHERE email = ?)",
+              UUID.randomUUID(),
+              normalizado,
+              hash,
+              perfil.name(),
+              normalizado);
+          return;
+        } catch (DuplicateKeyException jaExiste) {
+          return;
+        } catch (PessimisticLockingFailureException deadlock) {
+          if (tentativa >= TENTATIVAS) throw deadlock;
+        }
       }
     };
   }
