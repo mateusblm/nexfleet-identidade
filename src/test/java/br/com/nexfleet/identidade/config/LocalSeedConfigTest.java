@@ -51,4 +51,42 @@ class LocalSeedConfigTest {
                 .run(null));
     verifyNoInteractions(jdbc);
   }
+
+  @Test
+  void vitimaDeDeadlockRepeteAInsercao() throws Exception {
+    var jdbc = mock(JdbcTemplate.class);
+    when(jdbc.update(
+            anyString(), any(UUID.class), anyString(), anyString(), anyString(), anyString()))
+        .thenThrow(new org.springframework.dao.CannotAcquireLockException("erro 1205"))
+        .thenReturn(1);
+    new LocalSeedConfig()
+        .criarUsuarioLocal(jdbc, "aluno@example.com", "senha-local-estudo", Perfil.GESTOR_FROTA)
+        .run(null);
+    verify(jdbc, times(2))
+        .update(
+            anyString(),
+            any(UUID.class),
+            eq("aluno@example.com"),
+            anyString(),
+            eq("GESTOR_FROTA"),
+            eq("aluno@example.com"));
+  }
+
+  @Test
+  void desisteDepoisDeTresDeadlocks() {
+    var jdbc = mock(JdbcTemplate.class);
+    when(jdbc.update(
+            anyString(), any(UUID.class), anyString(), anyString(), anyString(), anyString()))
+        .thenThrow(new org.springframework.dao.CannotAcquireLockException("erro 1205"));
+    assertThrows(
+        org.springframework.dao.PessimisticLockingFailureException.class,
+        () ->
+            new LocalSeedConfig()
+                .criarUsuarioLocal(
+                    jdbc, "aluno@example.com", "senha-local-estudo", Perfil.GESTOR_FROTA)
+                .run(null));
+    verify(jdbc, times(3))
+        .update(
+            anyString(), any(UUID.class), anyString(), anyString(), anyString(), anyString());
+  }
 }
