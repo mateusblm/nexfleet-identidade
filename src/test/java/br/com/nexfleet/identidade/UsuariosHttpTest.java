@@ -158,6 +158,22 @@ class UsuariosHttpTest {
   }
 
   @Test
+  void exclusaoDefinitivaPassaPelaSegurancaSoParaAdministrador() throws Exception {
+    when(store.excluir(USER))
+        .thenReturn(Usuarios.Exclusao.EXCLUIDO, Usuarios.Exclusao.NAO_INATIVO);
+    var gestor = "Bearer " + tokens.emitir(USER, Perfil.GESTOR_FROTA).accessToken();
+    mvc.perform(delete(PATH + "/" + USER + "/definitivo").header("Authorization", gestor))
+        .andExpect(status().isForbidden());
+    mvc.perform(delete(PATH + "/" + USER + "/definitivo").header("Authorization", admin))
+        .andExpect(status().isNoContent());
+    mvc.perform(delete(PATH + "/" + USER + "/definitivo").header("Authorization", admin))
+        .andExpect(status().isUnprocessableContent());
+    mvc.perform(delete(PATH + "/" + ADMIN + "/definitivo").header("Authorization", admin))
+        .andExpect(status().isUnprocessableContent());
+    verify(store, never()).excluir(ADMIN);
+  }
+
+  @Test
   void emailDuplicado409UsuarioAusente404ECampoInvalido422() throws Exception {
     when(store.criar(any(), anyString(), anyString(), any()))
         .thenThrow(new FalhaUsuario(FalhaUsuario.Tipo.CONFLITO, "E-mail já cadastrado."));

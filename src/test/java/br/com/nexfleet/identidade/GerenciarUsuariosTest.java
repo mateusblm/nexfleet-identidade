@@ -88,4 +88,32 @@ class GerenciarUsuariosTest {
         FalhaUsuario.Tipo.NAO_ENCONTRADO,
         assertThrows(FalhaUsuario.class, () -> caso.desativar(admin, id)).tipo());
   }
+
+  @Test
+  void excluiSomenteContaDesativadaENuncaAPropria() {
+    var id = UUID.randomUUID();
+    when(store.administradorAtivo(admin)).thenReturn(true);
+    when(store.excluir(id))
+        .thenReturn(Usuarios.Exclusao.EXCLUIDO, Usuarios.Exclusao.NAO_INATIVO, Usuarios.Exclusao.NAO_ENCONTRADO);
+    assertDoesNotThrow(() -> caso.excluir(admin, id));
+    assertEquals(
+        FalhaUsuario.Tipo.INVALIDO,
+        assertThrows(FalhaUsuario.class, () -> caso.excluir(admin, id)).tipo());
+    assertEquals(
+        FalhaUsuario.Tipo.NAO_ENCONTRADO,
+        assertThrows(FalhaUsuario.class, () -> caso.excluir(admin, id)).tipo());
+    assertEquals(
+        FalhaUsuario.Tipo.INVALIDO,
+        assertThrows(FalhaUsuario.class, () -> caso.excluir(admin, admin)).tipo());
+    verify(store, never()).excluir(admin);
+  }
+
+  @Test
+  void exclusaoExigeAdministradorAtivo() {
+    when(store.administradorAtivo(admin)).thenReturn(false);
+    assertEquals(
+        FalhaUsuario.Tipo.PROIBIDO,
+        assertThrows(FalhaUsuario.class, () -> caso.excluir(admin, UUID.randomUUID())).tipo());
+    verify(store, never()).excluir(any());
+  }
 }

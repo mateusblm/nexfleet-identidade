@@ -19,4 +19,13 @@ public interface Usuarios {
   Optional<Dados> atualizar(UUID id, String email, Perfil perfil, boolean ativo);
 
   boolean desativar(UUID id);
+
+  /** Resultado da exclusão definitiva: só ocorre para conta desativada. */
+  enum Exclusao {
+    EXCLUIDO,
+    NAO_ENCONTRADO,
+    NAO_INATIVO
+  }
+
+  Exclusao excluir(UUID id);
 }

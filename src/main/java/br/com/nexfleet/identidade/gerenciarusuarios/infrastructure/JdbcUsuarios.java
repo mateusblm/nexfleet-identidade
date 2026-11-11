@@ -88,6 +88,13 @@ public class JdbcUsuarios implements Usuarios {
     return jdbc.update("UPDATE identidade.usuario SET ativo=false WHERE id=?", id) == 1;
   }
 
+  @Override
+  public Exclusao excluir(UUID id) {
+    if (jdbc.update("DELETE FROM identidade.usuario WHERE id=? AND NOT ativo", id) == 1)
+      return Exclusao.EXCLUIDO;
+    return buscar(id).isPresent() ? Exclusao.NAO_INATIVO : Exclusao.NAO_ENCONTRADO;
+  }
+
   private static FalhaUsuario duplicado() {
     return new FalhaUsuario(FalhaUsuario.Tipo.CONFLITO, "E-mail já cadastrado.");
   }

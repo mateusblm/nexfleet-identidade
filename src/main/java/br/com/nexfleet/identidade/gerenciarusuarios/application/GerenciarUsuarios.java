@@ -59,6 +59,21 @@ public class GerenciarUsuarios {
       throw new FalhaUsuario(PROIBIDO, "Acesso exclusivo de Administrador ativo.");
   }
 
+  /**
+   * Exclusão definitiva (ADR 0038): somente conta desativada e nunca a do próprio Administrador.
+   * Os registros operacionais guardam apenas o UUID do autor, que permanece neles.
+   */
+  public void excluir(UUID autor, UUID id) {
+    autorizar(autor);
+    if (autor.equals(id))
+      throw new FalhaUsuario(INVALIDO, "Você não pode excluir a própria conta.");
+    switch (usuarios.excluir(id)) {
+      case EXCLUIDO -> {}
+      case NAO_ENCONTRADO -> throw naoEncontrado();
+      case NAO_INATIVO -> throw new FalhaUsuario(INVALIDO, "Desative o usuário antes de excluí-lo.");
+    }
+  }
+
   private static String email(String email) {
     if (email == null) throw new FalhaUsuario(INVALIDO, "Informe um e-mail válido.");
     var valor = email.strip().toLowerCase(Locale.ROOT);

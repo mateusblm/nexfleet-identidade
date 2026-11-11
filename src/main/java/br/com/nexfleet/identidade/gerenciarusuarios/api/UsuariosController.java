@@ -69,6 +69,12 @@ public class UsuariosController {
     return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
   }
 
+  @DeleteMapping("/{id}/definitivo")
+  public ResponseEntity<Void> excluir(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+    usuarios.excluir(autor(jwt), id);
+    return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
+  }
+
   private UUID autor(Jwt jwt) {
     try {
       return UUID.fromString(jwt.getSubject());
