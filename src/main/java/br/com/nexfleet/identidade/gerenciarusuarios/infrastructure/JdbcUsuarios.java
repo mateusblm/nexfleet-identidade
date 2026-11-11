@@ -25,8 +25,8 @@ public class JdbcUsuarios implements Usuarios {
   public boolean administradorAtivo(UUID id) {
     return Boolean.TRUE.equals(
         jdbc.queryForObject(
-            "SELECT EXISTS(SELECT 1 FROM identidade.usuario WHERE id=? AND ativo AND"
-                + " perfil='ADMINISTRADOR')",
+            "SELECT CAST(CASE WHEN EXISTS(SELECT 1 FROM identidade.usuario WHERE id=? AND"
+                + " ativo=1 AND perfil='ADMINISTRADOR') THEN 1 ELSE 0 END AS BIT)",
             Boolean.class,
             id));
   }
@@ -34,10 +34,11 @@ public class JdbcUsuarios implements Usuarios {
   @Override
   public List<Dados> listar(int offset, int limite) {
     return jdbc.query(
-        "SELECT id,email,perfil,ativo FROM identidade.usuario ORDER BY email,id LIMIT ? OFFSET ?",
+        "SELECT id,email,perfil,ativo FROM identidade.usuario ORDER BY email,id"
+            + " OFFSET ? ROWS FETCH NEXT ? ROWS ONLY",
         MAP,
-        limite,
-        offset);
+        offset,
+        limite);
   }
 
   @Override
@@ -52,8 +53,9 @@ public class JdbcUsuarios implements Usuarios {
   public Dados criar(UUID id, String email, String hash, Perfil perfil) {
     try {
       return jdbc.queryForObject(
-          "INSERT INTO identidade.usuario(id,email,senha_hash,perfil) VALUES (?,?,?,?) RETURNING"
-              + " id,email,perfil,ativo",
+          "INSERT INTO identidade.usuario(id,email,senha_hash,perfil)"
+              + " OUTPUT inserted.id,inserted.email,inserted.perfil,inserted.ativo"
+              + " VALUES (?,?,?,?)",
           MAP,
           id,
           email,
@@ -69,8 +71,9 @@ public class JdbcUsuarios implements Usuarios {
     try {
       return jdbc
           .query(
-              "UPDATE identidade.usuario SET email=?,perfil=?,ativo=? WHERE id=? RETURNING"
-                  + " id,email,perfil,ativo",
+              "UPDATE identidade.usuario SET email=?,perfil=?,ativo=?"
+                  + " OUTPUT inserted.id,inserted.email,inserted.perfil,inserted.ativo"
+                  + " WHERE id=?",
               MAP,
               email,
               perfil.name(),
@@ -85,12 +88,12 @@ public class JdbcUsuarios implements Usuarios {
 
   @Override
   public boolean desativar(UUID id) {
-    return jdbc.update("UPDATE identidade.usuario SET ativo=false WHERE id=?", id) == 1;
+    return jdbc.update("UPDATE identidade.usuario SET ativo=0 WHERE id=?", id) == 1;
   }
 
   @Override
   public Exclusao excluir(UUID id) {
-    if (jdbc.update("DELETE FROM identidade.usuario WHERE id=? AND NOT ativo", id) == 1)
+    if (jdbc.update("DELETE FROM identidade.usuario WHERE id=? AND ativo=0", id) == 1)
       return Exclusao.EXCLUIDO;
     return buscar(id).isPresent() ? Exclusao.NAO_INATIVO : Exclusao.NAO_ENCONTRADO;
   }
